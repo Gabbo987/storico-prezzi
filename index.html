@@ -721,6 +721,12 @@
 
         <!-- Products Tab -->
         <div id="productsTab" class="tab-content active">
+            <!-- Quick Add Section -->
+            <div class="quick-add-section" id="quickAddSection" style="display: none;">
+                <div class="quick-add-title">AGGIUNGI VELOCE</div>
+                <div class="quick-add-grid" id="quickAddGrid"></div>
+            </div>
+
             <div class="search-bar">
                 <span>🔍</span>
                 <input type="text" class="search-input" id="searchInput" placeholder="Cerca prodotto o negozio">
@@ -759,6 +765,32 @@
                     <div class="stat-value" id="uniqueProducts">0</div>
                     <div class="stat-label">Prodotti unici</div>
                 </div>
+            </div>
+
+            <!-- Total Spending Chart -->
+            <div class="chart-container">
+                <div class="chart-title">📊 Spesa Totale nel Tempo</div>
+                <div class="chart-filters">
+                    <button class="chart-filter-btn active" onclick="updateSpendingChart('week')">Settimana</button>
+                    <button class="chart-filter-btn" onclick="updateSpendingChart('month')">Mese</button>
+                    <button class="chart-filter-btn" onclick="updateSpendingChart('year')">Anno</button>
+                </div>
+                <select class="sort-select" id="spendingStoreFilter" onchange="updateSpendingChart()">
+                    <option value="">Tutti i negozi</option>
+                </select>
+                <canvas id="spendingChart" class="chart-canvas"></canvas>
+            </div>
+
+            <!-- Product Price Chart -->
+            <div class="chart-container">
+                <div class="chart-title">💰 Prezzo Prodotto nel Tempo</div>
+                <select class="sort-select" id="productChartSelect" onchange="updateProductChart()">
+                    <option value="">Seleziona un prodotto</option>
+                </select>
+                <select class="sort-select" id="productStoreFilter" onchange="updateProductChart()" style="margin-top: 8px;">
+                    <option value="">Tutti i negozi</option>
+                </select>
+                <canvas id="productChart" class="chart-canvas"></canvas>
             </div>
 
             <div class="section-header">PRODOTTI PIÙ ACQUISTATI</div>
@@ -819,6 +851,46 @@
         </div>
     </div>
 
+    <!-- Quick Add Modal -->
+    <div id="quickAddModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="quickAddTitle">Aggiungi Veloce</h2>
+                <button class="modal-close" onclick="closeQuickAddModal()">×</button>
+            </div>
+            
+            <form id="quickAddForm" onsubmit="saveQuickAdd(event)">
+                <div class="card" style="background: #F0F9FF; border: 1px solid #BAE6FD; margin-bottom: 16px;">
+                    <div style="font-weight: 600; margin-bottom: 8px;" id="quickProductName"></div>
+                    <div style="color: var(--text-secondary); font-size: 14px;" id="quickProductBrand"></div>
+                    <div style="margin-top: 8px; color: var(--text-secondary); font-size: 13px;">
+                        Ultimo: <span style="font-weight: 600; color: var(--primary-color);" id="quickLastPrice"></span>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Prezzo (€)</label>
+                    <input type="number" class="form-input" id="quickPrice" step="0.01" min="0" required placeholder="0.00" autofocus>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Data Acquisto</label>
+                    <input type="date" class="form-input" id="quickDate" required>
+                </div>
+                
+                <div class="form-group autocomplete-container">
+                    <label class="form-label">Negozio</label>
+                    <input type="text" class="form-input" id="quickStore" required placeholder="es. Conad">
+                    <div id="quickStoreSuggestions" class="autocomplete-suggestions" style="display: none;"></div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">
+                    ✅ Aggiungi
+                </button>
+            </form>
+        </div>
+    </div>
+
     <!-- Add/Edit Modal -->
     <div id="addModal" class="modal">
         <div class="modal-content">
@@ -873,8 +945,14 @@
                 <div id="productFields">
                     <div class="form-group autocomplete-container">
                         <label class="form-label">Nome Prodotto</label>
-                        <input type="text" class="form-input" id="productName" required placeholder="es. Pasta Barilla">
+                        <input type="text" class="form-input" id="productName" required placeholder="es. Pasta">
                         <div id="nameSuggestions" class="autocomplete-suggestions" style="display: none;"></div>
+                    </div>
+
+                    <div class="form-group autocomplete-container">
+                        <label class="form-label">Marca</label>
+                        <input type="text" class="form-input" id="productBrand" required placeholder="es. Barilla, De Cecco">
+                        <div id="brandSuggestions" class="autocomplete-suggestions" style="display: none;"></div>
                     </div>
 
                     <div class="form-group">
@@ -951,19 +1029,46 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         let products = JSON.parse(localStorage.getItem('priceHistory') || '[]');
         let currentDiscountType = 'amount';
         let editingProductId = null;
         let currentMode = 'single'; // 'single' or 'shopping'
         let shoppingSession = null; // { store, date }
+        let spendingChartInstance = null;
+        let productChartInstance = null;
+        let currentSpendingPeriod = 'week';
+        let quickAddProduct = null;
+
+        // Migrate old data to add brand field
+        function migrateData() {
+            let needsMigration = false;
+            products = products.map(p => {
+                if (!p.hasOwnProperty('brand')) {
+                    needsMigration = true;
+                    return { ...p, brand: '' };
+                }
+                return p;
+            });
+            
+            if (needsMigration) {
+                localStorage.setItem('priceHistory', JSON.stringify(products));
+                console.log('Data migrated to include brand field');
+            }
+        }
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
+            migrateData();
+            
             document.getElementById('purchaseDate').valueAsDate = new Date();
             document.getElementById('sessionDateInput').valueAsDate = new Date();
+            document.getElementById('quickDate').valueAsDate = new Date();
+            
             renderProducts();
             updateStats();
+            updateQuickAdd();
             
             // Search and sort listeners
             document.getElementById('searchInput').addEventListener('input', renderProducts);
@@ -976,8 +1081,10 @@
             
             // Autocomplete listeners
             setupAutocomplete('productName', 'nameSuggestions', getProductNameSuggestions);
+            setupAutocomplete('productBrand', 'brandSuggestions', getBrandSuggestions);
             setupAutocomplete('storeName', 'storeSuggestions', getStoreSuggestions);
             setupAutocomplete('sessionStoreName', 'sessionStoreSuggestions', getStoreSuggestions);
+            setupAutocomplete('quickStore', 'quickStoreSuggestions', getStoreSuggestions);
         });
 
         // Autocomplete functionality
@@ -1018,6 +1125,14 @@
                 .filter(name => name.toLowerCase().includes(query.toLowerCase()))
                 .slice(0, 5)
                 .map(name => ({ value: name, label: name, icon: '📦' }));
+        }
+
+        function getBrandSuggestions(query) {
+            const brands = [...new Set(products.map(p => p.brand).filter(b => b))];
+            return brands
+                .filter(brand => brand.toLowerCase().includes(query.toLowerCase()))
+                .slice(0, 5)
+                .map(brand => ({ value: brand, label: brand, icon: '🏷️' }));
         }
 
         function getStoreSuggestions(query) {
@@ -1101,6 +1216,7 @@
         function addAnotherProduct() {
             // Clear product fields but keep session
             document.getElementById('productName').value = '';
+            document.getElementById('productBrand').value = '';
             document.getElementById('productPrice').value = '';
             document.getElementById('discountToggle').classList.remove('active');
             document.getElementById('discountSection').style.display = 'none';
@@ -1110,6 +1226,96 @@
             
             // Focus on product name
             document.getElementById('productName').focus();
+        }
+
+        // Quick Add functionality
+        function updateQuickAdd() {
+            const productGroups = {};
+            products.forEach(p => {
+                const key = `${p.name}|||${p.brand}`;
+                if (!productGroups[key]) {
+                    productGroups[key] = [];
+                }
+                productGroups[key].push(p);
+            });
+            
+            const topProducts = Object.entries(productGroups)
+                .map(([key, purchases]) => {
+                    const [name, brand] = key.split('|||');
+                    const sorted = purchases.sort((a, b) => new Date(b.date) - new Date(a.date));
+                    return {
+                        name,
+                        brand,
+                        lastPrice: getFinalPrice(sorted[0]),
+                        count: purchases.length,
+                        lastPurchase: sorted[0]
+                    };
+                })
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 6);
+            
+            const container = document.getElementById('quickAddGrid');
+            const section = document.getElementById('quickAddSection');
+            
+            if (topProducts.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+            
+            section.style.display = 'block';
+            container.innerHTML = topProducts.map(item => `
+                <div class="quick-add-item" onclick='openQuickAdd(${JSON.stringify(item).replace(/'/g, "&#39;")})'>
+                    <div class="quick-add-name">${item.name}</div>
+                    <div class="quick-add-brand">${item.brand}</div>
+                    <div class="quick-add-price">€${item.lastPrice.toFixed(2)}</div>
+                </div>
+            `).join('');
+        }
+
+        function openQuickAdd(item) {
+            quickAddProduct = item;
+            document.getElementById('quickProductName').textContent = item.name;
+            document.getElementById('quickProductBrand').textContent = item.brand;
+            document.getElementById('quickLastPrice').textContent = `€${item.lastPrice.toFixed(2)}`;
+            document.getElementById('quickPrice').value = item.lastPrice.toFixed(2);
+            document.getElementById('quickDate').valueAsDate = new Date();
+            document.getElementById('quickStore').value = item.lastPurchase.store;
+            document.getElementById('quickAddModal').classList.add('active');
+            
+            setTimeout(() => {
+                document.getElementById('quickPrice').focus();
+                document.getElementById('quickPrice').select();
+            }, 100);
+        }
+
+        function closeQuickAddModal() {
+            document.getElementById('quickAddModal').classList.remove('active');
+            quickAddProduct = null;
+        }
+
+        function saveQuickAdd(e) {
+            e.preventDefault();
+            
+            if (!quickAddProduct) return;
+            
+            const product = {
+                id: Date.now().toString(),
+                name: quickAddProduct.name,
+                brand: quickAddProduct.brand,
+                price: parseFloat(document.getElementById('quickPrice').value),
+                date: document.getElementById('quickDate').value,
+                store: document.getElementById('quickStore').value,
+                discount: null,
+                discountPercentage: null
+            };
+            
+            products.push(product);
+            localStorage.setItem('priceHistory', JSON.stringify(products));
+            
+            closeQuickAddModal();
+            renderProducts();
+            updateStats();
+            updateQuickAdd();
         }
 
         function switchTab(tab) {
@@ -1240,6 +1446,7 @@
             const product = {
                 id,
                 name: document.getElementById('productName').value,
+                brand: document.getElementById('productBrand').value,
                 price: parseFloat(document.getElementById('productPrice').value),
                 date: date,
                 store: store,
@@ -1261,11 +1468,13 @@
                 addAnotherProduct();
                 renderProducts();
                 updateStats();
+                updateQuickAdd();
             } else {
                 // In single mode or when editing, close modal
                 closeModal();
                 renderProducts();
                 updateStats();
+                updateQuickAdd();
                 shoppingSession = null; // Reset session after closing
             }
         }
@@ -1313,7 +1522,7 @@
                 return `
                     <div class="product-item" onclick="showProductDetail('${product.id}')">
                         <div class="product-header">
-                            <div class="product-name">${product.name}</div>
+                            <div class="product-name">${product.name}${product.brand ? ` - ${product.brand}` : ''}</div>
                             <div class="product-price-container">
                                 ${originalPrice ? `<div class="original-price">€${originalPrice.toFixed(2)}</div>` : ''}
                                 <div class="product-price ${hasDiscount ? 'discounted' : ''}">€${finalPrice.toFixed(2)}</div>
@@ -1374,6 +1583,12 @@
                         <span style="color: var(--text-secondary);">Prodotto</span>
                         <span style="font-weight: 600;">${product.name}</span>
                     </div>
+                    ${product.brand ? `
+                    <div style="padding: 8px 0; display: flex; justify-content: space-between;">
+                        <span style="color: var(--text-secondary);">Marca</span>
+                        <span style="font-weight: 600;">${product.brand}</span>
+                    </div>
+                    ` : ''}
                     <div style="padding: 8px 0; display: flex; justify-content: space-between;">
                         <span style="color: var(--text-secondary);">Negozio</span>
                         <span style="font-weight: 600;">${product.store}</span>
@@ -1473,6 +1688,7 @@
             document.getElementById('modalTitle').textContent = 'Modifica Prodotto';
             document.getElementById('editingId').value = id;
             document.getElementById('productName').value = product.name;
+            document.getElementById('productBrand').value = product.brand || '';
             document.getElementById('productPrice').value = product.price;
             document.getElementById('purchaseDate').value = product.date;
             document.getElementById('storeName').value = product.store;
@@ -1518,6 +1734,7 @@
                 closeDetailModal();
                 renderProducts();
                 updateStats();
+                updateQuickAdd();
             }
         }
 
@@ -1525,7 +1742,7 @@
             const totalSpent = products.reduce((sum, p) => sum + getFinalPrice(p), 0);
             const totalPurchases = products.length;
             const avgPrice = totalPurchases > 0 ? totalSpent / totalPurchases : 0;
-            const uniqueProducts = new Set(products.map(p => p.name)).size;
+            const uniqueProducts = new Set(products.map(p => `${p.name}|||${p.brand}`)).size;
             
             document.getElementById('totalSpent').textContent = `€${totalSpent.toFixed(2)}`;
             document.getElementById('totalPurchases').textContent = totalPurchases;
@@ -1533,21 +1750,57 @@
             document.getElementById('uniqueProducts').textContent = uniqueProducts;
             document.getElementById('totalProductsCount').textContent = totalPurchases;
             
-            // Top products
+            // Update store filters
+            const stores = ['', ...new Set(products.map(p => p.store))];
+            const spendingStoreFilter = document.getElementById('spendingStoreFilter');
+            const productStoreFilter = document.getElementById('productStoreFilter');
+            
+            const currentSpendingStore = spendingStoreFilter.value;
+            const currentProductStore = productStoreFilter.value;
+            
+            spendingStoreFilter.innerHTML = stores.map(s => 
+                `<option value="${s}">${s || 'Tutti i negozi'}</option>`
+            ).join('');
+            productStoreFilter.innerHTML = stores.map(s => 
+                `<option value="${s}">${s || 'Tutti i negozi'}</option>`
+            ).join('');
+            
+            spendingStoreFilter.value = currentSpendingStore;
+            productStoreFilter.value = currentProductStore;
+            
+            // Update product selector
             const productGroups = {};
             products.forEach(p => {
-                if (!productGroups[p.name]) {
-                    productGroups[p.name] = [];
+                const key = `${p.name}|||${p.brand}`;
+                if (!productGroups[key]) {
+                    productGroups[key] = [];
                 }
-                productGroups[p.name].push(p);
+                productGroups[key].push(p);
             });
             
+            const productChartSelect = document.getElementById('productChartSelect');
+            const currentProduct = productChartSelect.value;
+            
+            productChartSelect.innerHTML = '<option value="">Seleziona un prodotto</option>' +
+                Object.keys(productGroups).sort().map(key => {
+                    const [name, brand] = key.split('|||');
+                    const label = brand ? `${name} - ${brand}` : name;
+                    return `<option value="${key}">${label}</option>`;
+                }).join('');
+            
+            productChartSelect.value = currentProduct;
+            
+            // Top products
             const topProducts = Object.entries(productGroups)
-                .map(([name, purchases]) => ({
-                    name,
-                    count: purchases.length,
-                    avgPrice: purchases.reduce((sum, p) => sum + getFinalPrice(p), 0) / purchases.length
-                }))
+                .map(([key, purchases]) => {
+                    const [name, brand] = key.split('|||');
+                    return {
+                        name,
+                        brand,
+                        count: purchases.length,
+                        avgPrice: purchases.reduce((sum, p) => sum + getFinalPrice(p), 0) / purchases.length
+                    };
+                })
                 .sort((a, b) => b.count - a.count)
                 .slice(0, 10);
             
@@ -1561,9 +1814,9 @@
                 `;
             } else {
                 topList.innerHTML = topProducts.map(item => `
-                    <div class="product-item" onclick="showProductHistory('${item.name}')">
+                    <div class="product-item" onclick="showProductHistoryByKey('${item.name}|||${item.brand}')">
                         <div class="product-header">
-                            <div class="product-name">${item.name}</div>
+                            <div class="product-name">${item.name}${item.brand ? ` - ${item.brand}` : ''}</div>
                             <div class="product-price-container">
                                 <div class="product-price">€${item.avgPrice.toFixed(2)}</div>
                             </div>
@@ -1575,14 +1828,195 @@
                     </div>
                 `).join('');
             }
+            
+            // Update charts if on stats tab
+            if (document.getElementById('statsTab').classList.contains('active')) {
+                updateSpendingChart();
+                if (productChartSelect.value) {
+                    updateProductChart();
+                }
+            }
         }
 
-        function showProductHistory(productName) {
-            const related = products.filter(p => p.name === productName);
-            if (related.length === 0) return;
+        function showProductHistoryByKey(key) {
+            const [name, brand] = key.split('|||');
+            const related = products.filter(p => p.name === name && p.brand === brand);
+            if (related.length > 0) {
+                showProductDetail(related[0].id);
+            }
+        }
+
+        // Charts
+        function updateSpendingChart(period) {
+            if (period) {
+                currentSpendingPeriod = period;
+                // Update button states
+                document.querySelectorAll('.chart-filters button').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                event.target.classList.add('active');
+            }
             
-            // Show first product detail which will include history
-            showProductDetail(related[0].id);
+            const storeFilter = document.getElementById('spendingStoreFilter').value;
+            let filtered = products;
+            if (storeFilter) {
+                filtered = products.filter(p => p.store === storeFilter);
+            }
+            
+            // Group by period
+            const grouped = {};
+            filtered.forEach(p => {
+                const date = new Date(p.date);
+                let key;
+                
+                if (currentSpendingPeriod === 'week') {
+                    // Get week start (Monday)
+                    const day = date.getDay();
+                    const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+                    const weekStart = new Date(date.setDate(diff));
+                    key = weekStart.toISOString().split('T')[0];
+                } else if (currentSpendingPeriod === 'month') {
+                    key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                } else { // year
+                    key = date.getFullYear().toString();
+                }
+                
+                if (!grouped[key]) {
+                    grouped[key] = 0;
+                }
+                grouped[key] += getFinalPrice(p);
+            });
+            
+            // Sort and prepare data
+            const sorted = Object.entries(grouped).sort((a, b) => a[0].localeCompare(b[0]));
+            const labels = sorted.map(([key]) => {
+                if (currentSpendingPeriod === 'week') {
+                    return new Date(key).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
+                } else if (currentSpendingPeriod === 'month') {
+                    const [year, month] = key.split('-');
+                    return new Date(year, month - 1).toLocaleDateString('it-IT', { month: 'short', year: '2-digit' });
+                } else {
+                    return key;
+                }
+            });
+            const data = sorted.map(([, value]) => value);
+            
+            const ctx = document.getElementById('spendingChart');
+            
+            if (spendingChartInstance) {
+                spendingChartInstance.destroy();
+            }
+            
+            spendingChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Spesa Totale',
+                        data: data,
+                        borderColor: '#007AFF',
+                        backgroundColor: 'rgba(0, 122, 255, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => `€${context.parsed.y.toFixed(2)}`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: (value) => `€${value.toFixed(0)}`
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateProductChart() {
+            const productKey = document.getElementById('productChartSelect').value;
+            const storeFilter = document.getElementById('productStoreFilter').value;
+            
+            if (!productKey) {
+                if (productChartInstance) {
+                    productChartInstance.destroy();
+                    productChartInstance = null;
+                }
+                return;
+            }
+            
+            const [name, brand] = productKey.split('|||');
+            let filtered = products.filter(p => p.name === name && p.brand === brand);
+            
+            if (storeFilter) {
+                filtered = filtered.filter(p => p.store === storeFilter);
+            }
+            
+            const sorted = filtered.sort((a, b) => new Date(a.date) - new Date(b.date));
+            const labels = sorted.map(p => formatDate(p.date));
+            const data = sorted.map(p => getFinalPrice(p));
+            
+            const ctx = document.getElementById('productChart');
+            
+            if (productChartInstance) {
+                productChartInstance.destroy();
+            }
+            
+            productChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Prezzo',
+                        data: data,
+                        borderColor: '#34C759',
+                        backgroundColor: 'rgba(52, 199, 89, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 5,
+                        pointHoverRadius: 7,
+                        pointBackgroundColor: '#34C759'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => `€${context.parsed.y.toFixed(2)}`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            ticks: {
+                                callback: (value) => `€${value.toFixed(2)}`
+                            }
+                        }
+                    }
+                }
+            });
         }
 
         function exportData() {
@@ -1632,10 +2066,38 @@
                     localStorage.setItem('priceHistory', JSON.stringify(products));
                     renderProducts();
                     updateStats();
+                    updateQuickAdd();
                     alert('Tutti i dati sono stati eliminati');
                 }
             }
         }
+
+        // iOS Widget Support - expose data for Shortcuts app
+        window.getPriceHistoryData = function() {
+            return {
+                products: products,
+                totalSpent: products.reduce((sum, p) => sum + getFinalPrice(p), 0),
+                totalPurchases: products.length,
+                lastUpdate: new Date().toISOString()
+            };
+        };
+
+        window.addProductViaWidget = function(name, brand, price, store, date) {
+            const product = {
+                id: Date.now().toString(),
+                name: name,
+                brand: brand || '',
+                price: parseFloat(price),
+                date: date || new Date().toISOString().split('T')[0],
+                store: store,
+                discount: null,
+                discountPercentage: null
+            };
+            
+            products.push(product);
+            localStorage.setItem('priceHistory', JSON.stringify(products));
+            return { success: true, id: product.id };
+        };
 
         // Prevent zoom on input focus (iOS)
         document.addEventListener('touchstart', function() {}, {passive: true});
@@ -1647,6 +2109,10 @@
         
         document.getElementById('detailModal').addEventListener('click', function(e) {
             if (e.target === this) closeDetailModal();
+        });
+        
+        document.getElementById('quickAddModal').addEventListener('click', function(e) {
+            if (e.target === this) closeQuickAddModal();
         });
     </script>
 </body>
