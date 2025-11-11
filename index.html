@@ -268,6 +268,188 @@
             border-color: var(--primary-color);
         }
 
+        /* Autocomplete suggestions */
+        .autocomplete-container {
+            position: relative;
+        }
+
+        .autocomplete-suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--card-background);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            margin-top: 4px;
+        }
+
+        .autocomplete-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--background);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+
+        .autocomplete-item:active {
+            background: var(--background);
+        }
+
+        .autocomplete-icon {
+            font-size: 18px;
+        }
+
+        /* Mode Toggle */
+        .mode-toggle {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            background: var(--card-background);
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .mode-btn.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        /* Shopping Session Info */
+        .session-info {
+            background: #E3F2FD;
+            border: 1px solid #90CAF9;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .session-details {
+            flex: 1;
+        }
+
+        .session-store {
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-bottom: 2px;
+        }
+
+        .session-date {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        /* Quick Add */
+        .quick-add-section {
+            margin-bottom: 20px;
+        }
+
+        .quick-add-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .quick-add-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .quick-add-item {
+            background: var(--card-background);
+            border: 1.5px solid var(--border-color);
+            border-radius: 12px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .quick-add-item:active {
+            transform: scale(0.95);
+            border-color: var(--primary-color);
+        }
+
+        .quick-add-name {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .quick-add-brand {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .quick-add-price {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        /* Charts */
+        .chart-filters {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .chart-filter-btn {
+            padding: 8px 16px;
+            border: 1.5px solid var(--border-color);
+            border-radius: 20px;
+            background: var(--card-background);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .chart-filter-btn.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .chart-canvas {
+            width: 100%;
+            height: 250px;
+            margin-top: 12px;
+        }
+
         .form-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -648,25 +830,70 @@
             <form id="productForm" onsubmit="saveProduct(event)">
                 <input type="hidden" id="editingId">
 
-                <div class="form-group">
-                    <label class="form-label">Nome Prodotto</label>
-                    <input type="text" class="form-input" id="productName" required placeholder="es. Pasta Barilla">
+                <!-- Mode Toggle -->
+                <div class="mode-toggle">
+                    <button type="button" class="mode-btn active" id="singleModeBtn" onclick="switchMode('single')">
+                        📦 Prodotto Singolo
+                    </button>
+                    <button type="button" class="mode-btn" id="shoppingModeBtn" onclick="switchMode('shopping')">
+                        🛒 Spesa Completa
+                    </button>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label">Prezzo (€)</label>
-                    <input type="number" class="form-input" id="productPrice" step="0.01" min="0" required placeholder="0.00">
+                <!-- Shopping Session Info (shown only in shopping mode) -->
+                <div id="sessionInfo" class="session-info" style="display: none;">
+                    <div class="session-details">
+                        <div class="session-store" id="sessionStore">-</div>
+                        <div class="session-date" id="sessionDate">-</div>
+                    </div>
+                    <button type="button" class="session-close" onclick="endShoppingSession()">Termina</button>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label">Data Acquisto</label>
-                    <input type="date" class="form-input" id="purchaseDate" required>
+                <!-- Shopping Session Setup (shown only when starting shopping mode) -->
+                <div id="sessionSetup" style="display: none;">
+                    <div class="form-group autocomplete-container">
+                        <label class="form-label">Negozio</label>
+                        <input type="text" class="form-input" id="sessionStoreName" placeholder="es. Conad, Esselunga">
+                        <div id="sessionStoreSuggestions" class="autocomplete-suggestions" style="display: none;"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Data Spesa</label>
+                        <input type="date" class="form-input" id="sessionDateInput">
+                    </div>
+
+                    <button type="button" class="btn btn-primary" onclick="startShoppingSession()">
+                        ▶️ Inizia Spesa
+                    </button>
+                    
+                    <div style="height: 12px;"></div>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label">Negozio</label>
-                    <input type="text" class="form-input" id="storeName" required placeholder="es. Conad, Esselunga">
-                </div>
+                <!-- Product Fields -->
+                <div id="productFields">
+                    <div class="form-group autocomplete-container">
+                        <label class="form-label">Nome Prodotto</label>
+                        <input type="text" class="form-input" id="productName" required placeholder="es. Pasta Barilla">
+                        <div id="nameSuggestions" class="autocomplete-suggestions" style="display: none;"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Prezzo (€)</label>
+                        <input type="number" class="form-input" id="productPrice" step="0.01" min="0" required placeholder="0.00">
+                    </div>
+
+                    <div id="singleModeFields">
+                        <div class="form-group">
+                            <label class="form-label">Data Acquisto</label>
+                            <input type="date" class="form-input" id="purchaseDate" required>
+                        </div>
+
+                        <div class="form-group autocomplete-container">
+                            <label class="form-label">Negozio</label>
+                            <input type="text" class="form-input" id="storeName" required placeholder="es. Conad, Esselunga">
+                            <div id="storeSuggestions" class="autocomplete-suggestions" style="display: none;"></div>
+                        </div>
+                    </div>
 
                 <div class="form-group">
                     <div class="toggle-container">
@@ -702,7 +929,12 @@
                 </div>
 
                 <button type="submit" class="btn btn-primary" style="margin-top: 24px;">
-                    💾 Salva Prodotto
+                    <span id="saveButtonText">💾 Salva Prodotto</span>
+                </button>
+
+                <!-- Add Another Button (only in shopping mode) -->
+                <button type="button" class="btn btn-secondary" id="addAnotherBtn" style="margin-top: 12px; display: none;" onclick="addAnotherProduct()">
+                    ➕ Aggiungi Altro Prodotto
                 </button>
             </form>
         </div>
@@ -723,10 +955,13 @@
         let products = JSON.parse(localStorage.getItem('priceHistory') || '[]');
         let currentDiscountType = 'amount';
         let editingProductId = null;
+        let currentMode = 'single'; // 'single' or 'shopping'
+        let shoppingSession = null; // { store, date }
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('purchaseDate').valueAsDate = new Date();
+            document.getElementById('sessionDateInput').valueAsDate = new Date();
             renderProducts();
             updateStats();
             
@@ -738,7 +973,144 @@
             document.getElementById('productPrice').addEventListener('input', updateFinalPricePreview);
             document.getElementById('discountAmount').addEventListener('input', updateFinalPricePreview);
             document.getElementById('discountPercentage').addEventListener('input', updateFinalPricePreview);
+            
+            // Autocomplete listeners
+            setupAutocomplete('productName', 'nameSuggestions', getProductNameSuggestions);
+            setupAutocomplete('storeName', 'storeSuggestions', getStoreSuggestions);
+            setupAutocomplete('sessionStoreName', 'sessionStoreSuggestions', getStoreSuggestions);
         });
+
+        // Autocomplete functionality
+        function setupAutocomplete(inputId, suggestionsId, getSuggestionsFunc) {
+            const input = document.getElementById(inputId);
+            const suggestionsDiv = document.getElementById(suggestionsId);
+            
+            input.addEventListener('input', function() {
+                const value = this.value.trim();
+                if (value.length < 1) {
+                    suggestionsDiv.style.display = 'none';
+                    return;
+                }
+                
+                const suggestions = getSuggestionsFunc(value);
+                if (suggestions.length === 0) {
+                    suggestionsDiv.style.display = 'none';
+                    return;
+                }
+                
+                suggestionsDiv.innerHTML = suggestions.map(s => `
+                    <div class="autocomplete-item" onclick="selectSuggestion('${inputId}', '${s.value.replace(/'/g, "\\'")}')">
+                        <span class="autocomplete-icon">${s.icon}</span>
+                        <span>${s.label}</span>
+                    </div>
+                `).join('');
+                suggestionsDiv.style.display = 'block';
+            });
+            
+            input.addEventListener('blur', function() {
+                setTimeout(() => suggestionsDiv.style.display = 'none', 200);
+            });
+        }
+
+        function getProductNameSuggestions(query) {
+            const names = [...new Set(products.map(p => p.name))];
+            return names
+                .filter(name => name.toLowerCase().includes(query.toLowerCase()))
+                .slice(0, 5)
+                .map(name => ({ value: name, label: name, icon: '📦' }));
+        }
+
+        function getStoreSuggestions(query) {
+            const stores = [...new Set(products.map(p => p.store))];
+            return stores
+                .filter(store => store.toLowerCase().includes(query.toLowerCase()))
+                .slice(0, 5)
+                .map(store => ({ value: store, label: store, icon: '🏪' }));
+        }
+
+        function selectSuggestion(inputId, value) {
+            document.getElementById(inputId).value = value;
+            document.getElementById(inputId).focus();
+        }
+
+        // Mode switching
+        function switchMode(mode) {
+            currentMode = mode;
+            
+            document.getElementById('singleModeBtn').classList.toggle('active', mode === 'single');
+            document.getElementById('shoppingModeBtn').classList.toggle('active', mode === 'shopping');
+            
+            if (mode === 'shopping') {
+                if (shoppingSession) {
+                    // Session already active
+                    document.getElementById('sessionSetup').style.display = 'none';
+                    document.getElementById('sessionInfo').style.display = 'flex';
+                    document.getElementById('singleModeFields').style.display = 'none';
+                    document.getElementById('productFields').style.display = 'block';
+                    document.getElementById('addAnotherBtn').style.display = 'block';
+                    document.getElementById('saveButtonText').textContent = '✅ Aggiungi e Continua';
+                } else {
+                    // Show session setup
+                    document.getElementById('sessionSetup').style.display = 'block';
+                    document.getElementById('sessionInfo').style.display = 'none';
+                    document.getElementById('productFields').style.display = 'none';
+                    document.getElementById('addAnotherBtn').style.display = 'none';
+                }
+            } else {
+                // Single mode
+                document.getElementById('sessionSetup').style.display = 'none';
+                document.getElementById('sessionInfo').style.display = 'none';
+                document.getElementById('singleModeFields').style.display = 'block';
+                document.getElementById('productFields').style.display = 'block';
+                document.getElementById('addAnotherBtn').style.display = 'none';
+                document.getElementById('saveButtonText').textContent = '💾 Salva Prodotto';
+            }
+        }
+
+        function startShoppingSession() {
+            const store = document.getElementById('sessionStoreName').value.trim();
+            const date = document.getElementById('sessionDateInput').value;
+            
+            if (!store || !date) {
+                alert('Inserisci negozio e data');
+                return;
+            }
+            
+            shoppingSession = { store, date };
+            
+            document.getElementById('sessionStore').textContent = store;
+            document.getElementById('sessionDate').textContent = formatDate(date);
+            
+            document.getElementById('sessionSetup').style.display = 'none';
+            document.getElementById('sessionInfo').style.display = 'flex';
+            document.getElementById('productFields').style.display = 'block';
+            document.getElementById('addAnotherBtn').style.display = 'block';
+            document.getElementById('saveButtonText').textContent = '✅ Aggiungi e Continua';
+            
+            // Focus on product name
+            document.getElementById('productName').focus();
+        }
+
+        function endShoppingSession() {
+            if (confirm('Terminare la spesa? I prodotti inseriti sono già salvati.')) {
+                shoppingSession = null;
+                closeModal();
+            }
+        }
+
+        function addAnotherProduct() {
+            // Clear product fields but keep session
+            document.getElementById('productName').value = '';
+            document.getElementById('productPrice').value = '';
+            document.getElementById('discountToggle').classList.remove('active');
+            document.getElementById('discountSection').style.display = 'none';
+            document.getElementById('discountAmount').value = '';
+            document.getElementById('discountPercentage').value = '';
+            updateFinalPricePreview();
+            
+            // Focus on product name
+            document.getElementById('productName').focus();
+        }
 
         function switchTab(tab) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -760,17 +1132,37 @@
 
         function openAddModal() {
             editingProductId = null;
-            document.getElementById('modalTitle').textContent = 'Nuovo Prodotto';
+            document.getElementById('modalTitle').textContent = currentMode === 'shopping' && shoppingSession ? 'Aggiungi Prodotto' : 'Nuovo Prodotto';
             document.getElementById('productForm').reset();
             document.getElementById('editingId').value = '';
-            document.getElementById('purchaseDate').valueAsDate = new Date();
+            
+            if (currentMode === 'single' || !shoppingSession) {
+                document.getElementById('purchaseDate').valueAsDate = new Date();
+                currentMode = 'single';
+                switchMode('single');
+            } else {
+                switchMode('shopping');
+            }
+            
             document.getElementById('discountToggle').classList.remove('active');
             document.getElementById('discountSection').style.display = 'none';
             document.getElementById('addModal').classList.add('active');
             updateFinalPricePreview();
+            
+            // Focus appropriate field
+            setTimeout(() => {
+                if (currentMode === 'shopping' && shoppingSession) {
+                    document.getElementById('productName').focus();
+                } else if (currentMode === 'shopping' && !shoppingSession) {
+                    document.getElementById('sessionStoreName').focus();
+                } else {
+                    document.getElementById('productName').focus();
+                }
+            }, 100);
         }
 
         function closeModal() {
+            // Don't reset shopping session on close
             document.getElementById('addModal').classList.remove('active');
         }
 
@@ -835,12 +1227,22 @@
                 }
             }
             
+            // Get date and store based on mode
+            let date, store;
+            if (currentMode === 'shopping' && shoppingSession) {
+                date = shoppingSession.date;
+                store = shoppingSession.store;
+            } else {
+                date = document.getElementById('purchaseDate').value;
+                store = document.getElementById('storeName').value;
+            }
+            
             const product = {
                 id,
                 name: document.getElementById('productName').value,
                 price: parseFloat(document.getElementById('productPrice').value),
-                date: document.getElementById('purchaseDate').value,
-                store: document.getElementById('storeName').value,
+                date: date,
+                store: store,
                 discount,
                 discountPercentage
             };
@@ -852,9 +1254,20 @@
             }
             
             localStorage.setItem('priceHistory', JSON.stringify(products));
-            closeModal();
-            renderProducts();
-            updateStats();
+            
+            // Different behavior based on mode
+            if (currentMode === 'shopping' && shoppingSession && !editingProductId) {
+                // In shopping mode, clear form and stay open
+                addAnotherProduct();
+                renderProducts();
+                updateStats();
+            } else {
+                // In single mode or when editing, close modal
+                closeModal();
+                renderProducts();
+                updateStats();
+                shoppingSession = null; // Reset session after closing
+            }
         }
 
         function renderProducts() {
@@ -1052,6 +1465,10 @@
             const product = products.find(p => p.id === id);
             if (!product) return;
             
+            // Force single mode when editing
+            currentMode = 'single';
+            shoppingSession = null;
+            
             editingProductId = id;
             document.getElementById('modalTitle').textContent = 'Modifica Prodotto';
             document.getElementById('editingId').value = id;
@@ -1059,6 +1476,8 @@
             document.getElementById('productPrice').value = product.price;
             document.getElementById('purchaseDate').value = product.date;
             document.getElementById('storeName').value = product.store;
+            
+            switchMode('single');
             
             const hasDiscount = product.discount || product.discountPercentage;
             const toggle = document.getElementById('discountToggle');
