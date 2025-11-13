@@ -142,37 +142,38 @@
 
         .product-menu-btn {
             position: absolute;
-            top: 12px;
-            right: 12px;
-            width: 32px;
-            height: 32px;
+            top: 8px;
+            right: 8px;
+            width: 28px;
+            height: 28px;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: var(--background);
-            border-radius: 8px;
+            background: rgba(242, 242, 247, 0.95);
+            border-radius: 6px;
             cursor: pointer;
             z-index: 10;
             transition: all 0.2s;
+            backdrop-filter: blur(10px);
         }
 
         .product-menu-btn:active {
-            background: var(--border-color);
+            background: rgba(209, 209, 214, 0.95);
             transform: scale(0.9);
         }
 
         .product-menu-icon {
-            font-size: 20px;
+            font-size: 18px;
             color: var(--text-secondary);
         }
 
         .product-menu {
             position: absolute;
-            top: 48px;
-            right: 12px;
+            top: 40px;
+            right: 8px;
             background: var(--card-background);
             border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
             z-index: 100;
             min-width: 150px;
             overflow: hidden;
@@ -1266,7 +1267,7 @@
             
             if (mode === 'shopping') {
                 if (shoppingSession) {
-                    // Session already active
+                    // Session already active - hide setup, show fields
                     document.getElementById('sessionSetup').style.display = 'none';
                     document.getElementById('sessionInfo').style.display = 'flex';
                     document.getElementById('singleModeFields').style.display = 'none';
@@ -1274,14 +1275,14 @@
                     document.getElementById('addAnotherBtn').style.display = 'block';
                     document.getElementById('saveButtonText').textContent = '✅ Aggiungi e Continua';
                 } else {
-                    // Show session setup
+                    // Show session setup, hide product fields
                     document.getElementById('sessionSetup').style.display = 'block';
                     document.getElementById('sessionInfo').style.display = 'none';
                     document.getElementById('productFields').style.display = 'none';
                     document.getElementById('addAnotherBtn').style.display = 'none';
                 }
             } else {
-                // Single mode
+                // Single mode - show all fields
                 document.getElementById('sessionSetup').style.display = 'none';
                 document.getElementById('sessionInfo').style.display = 'none';
                 document.getElementById('singleModeFields').style.display = 'block';
@@ -1647,9 +1648,9 @@
                                 <span>Elimina</span>
                             </div>
                         </div>
-                        <div onclick="showProductDetail('${product.id}')">
+                        <div onclick="showProductDetail('${product.id}')" style="padding-top: 8px;">
                             <div class="product-header">
-                                <div class="product-name" style="padding-right: 40px;">${product.name}${product.brand ? ` - ${product.brand}` : ''}</div>
+                                <div class="product-name">${product.name}${product.brand ? ` - ${product.brand}` : ''}</div>
                                 <div class="product-price-container">
                                     ${originalPrice ? `<div class="original-price">€${originalPrice.toFixed(2)}</div>` : ''}
                                     <div class="product-price ${hasDiscount ? 'discounted' : ''}">€${finalPrice.toFixed(2)}</div>
@@ -1918,59 +1919,12 @@
             
             productChartSelect.value = currentProduct;
             
-            // Top products
-            const topProducts = Object.entries(productGroups)
-                .map(([key, purchases]) => {
-                    const [name, brand] = key.split('|||');
-                    return {
-                        name,
-                        brand,
-                        count: purchases.length,
-                        avgPrice: purchases.reduce((sum, p) => sum + getFinalPrice(p), 0) / purchases.length
-                    };
-                })
-                .sort((a, b) => b.count - a.count)
-                .slice(0, 10);
-            
-            const topList = document.getElementById('topProductsList');
-            if (topProducts.length === 0) {
-                topList.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-icon">📊</div>
-                        <div class="empty-text">Nessun dato disponibile</div>
-                    </div>
-                `;
-            } else {
-                topList.innerHTML = topProducts.map(item => `
-                    <div class="product-item" onclick="showProductHistoryByKey('${item.name}|||${item.brand}')">
-                        <div class="product-header">
-                            <div class="product-name">${item.name}${item.brand ? ` - ${item.brand}` : ''}</div>
-                            <div class="product-price-container">
-                                <div class="product-price">€${item.avgPrice.toFixed(2)}</div>
-                            </div>
-                        </div>
-                        <div class="product-details">
-                            <div>📦 ${item.count} acquisti</div>
-                            <div>📊 Prezzo medio</div>
-                        </div>
-                    </div>
-                `).join('');
-            }
-            
             // Update charts if on stats tab
             if (document.getElementById('statsTab').classList.contains('active')) {
                 updateSpendingChart();
                 if (productChartSelect.value) {
                     updateProductChart();
                 }
-            }
-        }
-
-        function showProductHistoryByKey(key) {
-            const [name, brand] = key.split('|||');
-            const related = products.filter(p => p.name === name && p.brand === brand);
-            if (related.length > 0) {
-                showProductDetail(related[0].id);
             }
         }
 
