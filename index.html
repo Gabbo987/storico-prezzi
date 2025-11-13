@@ -122,12 +122,103 @@
         }
 
         /* Product Item */
+        /* Product Item with Menu */
         .product-item {
             background: var(--card-background);
             border-radius: 12px;
             padding: 16px;
             margin-bottom: 10px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            position: relative;
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        .product-item.menu-open {
+            background: #F8F9FA;
+        }
+
+        .product-menu-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--background);
+            border-radius: 8px;
+            cursor: pointer;
+            z-index: 10;
+            transition: all 0.2s;
+        }
+
+        .product-menu-btn:active {
+            background: var(--border-color);
+            transform: scale(0.9);
+        }
+
+        .product-menu-icon {
+            font-size: 20px;
+            color: var(--text-secondary);
+        }
+
+        .product-menu {
+            position: absolute;
+            top: 48px;
+            right: 12px;
+            background: var(--card-background);
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 100;
+            min-width: 150px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .product-menu.active {
+            display: block;
+            animation: slideDown 0.2s;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .product-menu-item {
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--background);
+            transition: background 0.2s;
+        }
+
+        .product-menu-item:last-child {
+            border-bottom: none;
+        }
+
+        .product-menu-item:active {
+            background: var(--background);
+        }
+
+        .product-menu-item.danger {
+            color: var(--danger-color);
+        }
+
+        .product-menu-icon-item {
+            font-size: 18px;
         }
 
         .product-header {
@@ -379,6 +470,7 @@
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 10px;
+            margin: 0 -2px; /* Compensate for any margin issues */
         }
 
         .quick-add-item {
@@ -388,6 +480,8 @@
             padding: 12px;
             cursor: pointer;
             transition: all 0.2s;
+            min-width: 0; /* Allow shrinking */
+            overflow: hidden; /* Prevent overflow */
         }
 
         .quick-add-item:active {
@@ -402,6 +496,7 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            width: 100%; /* Ensure it respects container */
         }
 
         .quick-add-brand {
@@ -411,6 +506,7 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            width: 100%; /* Ensure it respects container */
         }
 
         .quick-add-price {
@@ -444,10 +540,19 @@
             border-color: var(--primary-color);
         }
 
-        .chart-canvas {
+        .chart-wrapper {
+            position: relative;
             width: 100%;
-            height: 250px;
+            height: 250px; /* Fixed height */
             margin-top: 12px;
+        }
+
+        .chart-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100% !important;
+            height: 100% !important;
         }
 
         .form-row {
@@ -778,7 +883,9 @@
                 <select class="sort-select" id="spendingStoreFilter" onchange="updateSpendingChart()">
                     <option value="">Tutti i negozi</option>
                 </select>
-                <canvas id="spendingChart" class="chart-canvas"></canvas>
+                <div class="chart-wrapper">
+                    <canvas id="spendingChart" class="chart-canvas"></canvas>
+                </div>
             </div>
 
             <!-- Product Price Chart -->
@@ -790,7 +897,9 @@
                 <select class="sort-select" id="productStoreFilter" onchange="updateProductChart()" style="margin-top: 8px;">
                     <option value="">Tutti i negozi</option>
                 </select>
-                <canvas id="productChart" class="chart-canvas"></canvas>
+                <div class="chart-wrapper">
+                    <canvas id="productChart" class="chart-canvas"></canvas>
+                </div>
             </div>
 
             <div class="section-header">PRODOTTI PIÙ ACQUISTATI</div>
@@ -1520,26 +1629,45 @@
                 const originalPrice = hasDiscount ? product.price : null;
                 
                 return `
-                    <div class="product-item" onclick="showProductDetail('${product.id}')">
-                        <div class="product-header">
-                            <div class="product-name">${product.name}${product.brand ? ` - ${product.brand}` : ''}</div>
-                            <div class="product-price-container">
-                                ${originalPrice ? `<div class="original-price">€${originalPrice.toFixed(2)}</div>` : ''}
-                                <div class="product-price ${hasDiscount ? 'discounted' : ''}">€${finalPrice.toFixed(2)}</div>
+                    <div class="product-item" data-product-id="${product.id}">
+                        <div class="product-menu-btn" onclick="toggleProductMenu(event, '${product.id}')">
+                            <span class="product-menu-icon">⋮</span>
+                        </div>
+                        <div class="product-menu" id="menu-${product.id}">
+                            <div class="product-menu-item" onclick="editProductFromMenu(event, '${product.id}')">
+                                <span class="product-menu-icon-item">✏️</span>
+                                <span>Modifica</span>
+                            </div>
+                            <div class="product-menu-item" onclick="viewProductDetail(event, '${product.id}')">
+                                <span class="product-menu-icon-item">👁️</span>
+                                <span>Dettagli</span>
+                            </div>
+                            <div class="product-menu-item danger" onclick="deleteProductFromMenu(event, '${product.id}')">
+                                <span class="product-menu-icon-item">🗑️</span>
+                                <span>Elimina</span>
                             </div>
                         </div>
-                        <div class="product-details">
-                            <div>🏪 ${product.store}</div>
-                            <div>📅 ${formatDate(product.date)}</div>
-                        </div>
-                        ${hasDiscount ? `
-                            <div class="discount-badge">
-                                🏷️ ${product.discountPercentage ? 
-                                    `Sconto ${product.discountPercentage}%` : 
-                                    `Sconto €${product.discount.toFixed(2)}`
-                                }
+                        <div onclick="showProductDetail('${product.id}')">
+                            <div class="product-header">
+                                <div class="product-name" style="padding-right: 40px;">${product.name}${product.brand ? ` - ${product.brand}` : ''}</div>
+                                <div class="product-price-container">
+                                    ${originalPrice ? `<div class="original-price">€${originalPrice.toFixed(2)}</div>` : ''}
+                                    <div class="product-price ${hasDiscount ? 'discounted' : ''}">€${finalPrice.toFixed(2)}</div>
+                                </div>
                             </div>
-                        ` : ''}
+                            <div class="product-details">
+                                <div>🏪 ${product.store}</div>
+                                <div>📅 ${formatDate(product.date)}</div>
+                            </div>
+                            ${hasDiscount ? `
+                                <div class="discount-badge">
+                                    🏷️ ${product.discountPercentage ? 
+                                        `Sconto ${product.discountPercentage}%` : 
+                                        `Sconto €${product.discount.toFixed(2)}`
+                                    }
+                                </div>
+                            ` : ''}
+                        </div>
                     </div>
                 `;
             }).join('');
