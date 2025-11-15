@@ -1306,14 +1306,18 @@
             document.getElementById('sessionStore').textContent = store;
             document.getElementById('sessionDate').textContent = formatDate(date);
             
+            // Hide setup, show info and product fields
             document.getElementById('sessionSetup').style.display = 'none';
             document.getElementById('sessionInfo').style.display = 'flex';
+            document.getElementById('singleModeFields').style.display = 'none'; // CRITICAL: Hide date/store fields
             document.getElementById('productFields').style.display = 'block';
             document.getElementById('addAnotherBtn').style.display = 'block';
             document.getElementById('saveButtonText').textContent = '✅ Aggiungi e Continua';
             
             // Focus on product name
-            document.getElementById('productName').focus();
+            setTimeout(() => {
+                document.getElementById('productName').focus();
+            }, 100);
         }
 
         function endShoppingSession() {
@@ -1822,7 +1826,17 @@
             document.getElementById('purchaseDate').value = product.date;
             document.getElementById('storeName').value = product.store;
             
-            switchMode('single');
+            // Make sure we're in single mode
+            document.getElementById('singleModeBtn').classList.add('active');
+            document.getElementById('shoppingModeBtn').classList.remove('active');
+            
+            // Show all necessary fields
+            document.getElementById('sessionSetup').style.display = 'none';
+            document.getElementById('sessionInfo').style.display = 'none';
+            document.getElementById('singleModeFields').style.display = 'block';
+            document.getElementById('productFields').style.display = 'block';
+            document.getElementById('addAnotherBtn').style.display = 'none';
+            document.getElementById('saveButtonText').textContent = '💾 Salva Prodotto';
             
             const hasDiscount = product.discount || product.discountPercentage;
             const toggle = document.getElementById('discountToggle');
