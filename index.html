@@ -1116,14 +1116,19 @@
                     </div>
                 </div>
 
-                <button type="submit" class="btn btn-primary" style="margin-top: 24px;">
-                    <span id="saveButtonText">💾 Salva Prodotto</span>
+                <button type="submit" class="btn btn-primary" style="margin-top: 24px;" id="mainSaveBtn">
+                    <span id="saveButtonText">💾 Salva</span>
                 </button>
 
-                <!-- Add Another Button (only in shopping mode) -->
-                <button type="button" class="btn btn-secondary" id="addAnotherBtn" style="margin-top: 12px; display: none;" onclick="addAnotherProduct()">
-                    ➕ Aggiungi Altro Prodotto
-                </button>
+                <!-- Shopping Mode Buttons -->
+                <div id="shoppingModeButtons" style="display: none; margin-top: 12px;">
+                    <button type="button" class="btn btn-secondary" onclick="saveAndAddAnother()">
+                        ➕ Salva e Aggiungi Altro
+                    </button>
+                    <button type="button" class="btn" style="background: var(--success-color); color: white; margin-top: 8px;" onclick="saveAndClose()">
+                        ✅ Salva e Termina Spesa
+                    </button>
+                </div>
             </form>
         </div>
     </div>
@@ -1272,14 +1277,16 @@
                     document.getElementById('sessionInfo').style.display = 'flex';
                     document.getElementById('singleModeFields').style.display = 'none';
                     document.getElementById('productFields').style.display = 'block';
-                    document.getElementById('addAnotherBtn').style.display = 'block';
-                    document.getElementById('saveButtonText').textContent = '✅ Aggiungi e Continua';
+                    document.getElementById('shoppingModeButtons').style.display = 'block';
+                    document.getElementById('mainSaveBtn').style.display = 'none';
+                    document.getElementById('saveButtonText').textContent = '💾 Salva';
                 } else {
                     // Show session setup, hide product fields
                     document.getElementById('sessionSetup').style.display = 'block';
                     document.getElementById('sessionInfo').style.display = 'none';
                     document.getElementById('productFields').style.display = 'none';
-                    document.getElementById('addAnotherBtn').style.display = 'none';
+                    document.getElementById('shoppingModeButtons').style.display = 'none';
+                    document.getElementById('mainSaveBtn').style.display = 'none';
                 }
             } else {
                 // Single mode - show all fields
@@ -1287,8 +1294,9 @@
                 document.getElementById('sessionInfo').style.display = 'none';
                 document.getElementById('singleModeFields').style.display = 'block';
                 document.getElementById('productFields').style.display = 'block';
-                document.getElementById('addAnotherBtn').style.display = 'none';
-                document.getElementById('saveButtonText').textContent = '💾 Salva Prodotto';
+                document.getElementById('shoppingModeButtons').style.display = 'none';
+                document.getElementById('mainSaveBtn').style.display = 'block';
+                document.getElementById('saveButtonText').textContent = '💾 Salva';
             }
         }
 
@@ -1309,10 +1317,10 @@
             // Hide setup, show info and product fields
             document.getElementById('sessionSetup').style.display = 'none';
             document.getElementById('sessionInfo').style.display = 'flex';
-            document.getElementById('singleModeFields').style.display = 'none'; // CRITICAL: Hide date/store fields
+            document.getElementById('singleModeFields').style.display = 'none';
             document.getElementById('productFields').style.display = 'block';
-            document.getElementById('addAnotherBtn').style.display = 'block';
-            document.getElementById('saveButtonText').textContent = '✅ Aggiungi e Continua';
+            document.getElementById('shoppingModeButtons').style.display = 'block';
+            document.getElementById('mainSaveBtn').style.display = 'none';
             
             // Focus on product name
             setTimeout(() => {
@@ -1327,8 +1335,95 @@
             }
         }
 
-        function addAnotherProduct() {
-            // Clear product fields but keep session
+        function saveAndAddAnother() {
+            // Validate form
+            const name = document.getElementById('productName').value.trim();
+            const brand = document.getElementById('productBrand').value.trim();
+            const price = document.getElementById('productPrice').value;
+            
+            if (!name || !brand || !price) {
+                alert('Compila tutti i campi obbligatori');
+                return;
+            }
+            
+            // Save the product
+            const product = createProductFromForm();
+            products.push(product);
+            localStorage.setItem('priceHistory', JSON.stringify(products));
+            
+            // Clear form and stay in modal
+            clearProductForm();
+            renderProducts();
+            updateStats();
+            updateQuickAdd();
+            
+            // Focus on product name for next entry
+            setTimeout(() => {
+                document.getElementById('productName').focus();
+            }, 100);
+        }
+
+        function saveAndClose() {
+            // Validate form
+            const name = document.getElementById('productName').value.trim();
+            const brand = document.getElementById('productBrand').value.trim();
+            const price = document.getElementById('productPrice').value;
+            
+            if (!name || !brand || !price) {
+                alert('Compila tutti i campi obbligatori');
+                return;
+            }
+            
+            // Save the product
+            const product = createProductFromForm();
+            products.push(product);
+            localStorage.setItem('priceHistory', JSON.stringify(products));
+            
+            // Close modal and end session
+            shoppingSession = null;
+            closeModal();
+            renderProducts();
+            updateStats();
+            updateQuickAdd();
+        }
+
+        function createProductFromForm() {
+            const hasDiscount = document.getElementById('discountToggle').classList.contains('active');
+            
+            let discount = null;
+            let discountPercentage = null;
+            
+            if (hasDiscount) {
+                if (currentDiscountType === 'amount') {
+                    discount = parseFloat(document.getElementById('discountAmount').value) || null;
+                } else {
+                    discountPercentage = parseFloat(document.getElementById('discountPercentage').value) || null;
+                }
+            }
+            
+            // Get date and store based on mode
+            let date, store;
+            if (currentMode === 'shopping' && shoppingSession) {
+                date = shoppingSession.date;
+                store = shoppingSession.store;
+            } else {
+                date = document.getElementById('purchaseDate').value;
+                store = document.getElementById('storeName').value;
+            }
+            
+            return {
+                id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+                name: document.getElementById('productName').value.trim(),
+                brand: document.getElementById('productBrand').value.trim(),
+                price: parseFloat(document.getElementById('productPrice').value),
+                date: date,
+                store: store,
+                discount,
+                discountPercentage
+            };
+        }
+
+        function clearProductForm() {
             document.getElementById('productName').value = '';
             document.getElementById('productBrand').value = '';
             document.getElementById('productPrice').value = '';
@@ -1337,8 +1432,10 @@
             document.getElementById('discountAmount').value = '';
             document.getElementById('discountPercentage').value = '';
             updateFinalPricePreview();
-            
-            // Focus on product name
+        }
+
+        function addAnotherProduct() {
+            clearProductForm();
             document.getElementById('productName').focus();
         }
 
@@ -1454,7 +1551,6 @@
             editingProductId = null;
             document.getElementById('modalTitle').textContent = currentMode === 'shopping' && shoppingSession ? 'Aggiungi Prodotto' : 'Nuovo Prodotto';
             document.getElementById('productForm').reset();
-            document.getElementById('editingId').value = '';
             
             if (currentMode === 'single' || !shoppingSession) {
                 document.getElementById('purchaseDate').valueAsDate = new Date();
@@ -1482,7 +1578,8 @@
         }
 
         function closeModal() {
-            // Don't reset shopping session on close
+            // Reset editing state
+            editingProductId = null;
             document.getElementById('addModal').classList.remove('active');
         }
 
@@ -1533,7 +1630,12 @@
         function saveProduct(e) {
             e.preventDefault();
             
-            const id = editingProductId || Date.now().toString();
+            // If in shopping mode, don't use this - use the dedicated buttons
+            if (currentMode === 'shopping' && shoppingSession) {
+                return;
+            }
+            
+            const id = editingProductId || Date.now().toString() + Math.random().toString(36).substr(2, 9);
             const hasDiscount = document.getElementById('discountToggle').classList.contains('active');
             
             let discount = null;
@@ -1547,23 +1649,13 @@
                 }
             }
             
-            // Get date and store based on mode
-            let date, store;
-            if (currentMode === 'shopping' && shoppingSession) {
-                date = shoppingSession.date;
-                store = shoppingSession.store;
-            } else {
-                date = document.getElementById('purchaseDate').value;
-                store = document.getElementById('storeName').value;
-            }
-            
             const product = {
                 id,
-                name: document.getElementById('productName').value,
-                brand: document.getElementById('productBrand').value,
+                name: document.getElementById('productName').value.trim(),
+                brand: document.getElementById('productBrand').value.trim(),
                 price: parseFloat(document.getElementById('productPrice').value),
-                date: date,
-                store: store,
+                date: document.getElementById('purchaseDate').value,
+                store: document.getElementById('storeName').value.trim(),
                 discount,
                 discountPercentage
             };
@@ -1576,21 +1668,10 @@
             
             localStorage.setItem('priceHistory', JSON.stringify(products));
             
-            // Different behavior based on mode
-            if (currentMode === 'shopping' && shoppingSession && !editingProductId) {
-                // In shopping mode, clear form and stay open
-                addAnotherProduct();
-                renderProducts();
-                updateStats();
-                updateQuickAdd();
-            } else {
-                // In single mode or when editing, close modal
-                closeModal();
-                renderProducts();
-                updateStats();
-                updateQuickAdd();
-                shoppingSession = null; // Reset session after closing
-            }
+            closeModal();
+            renderProducts();
+            updateStats();
+            updateQuickAdd();
         }
 
         function renderProducts() {
@@ -1813,31 +1894,33 @@
             const product = products.find(p => p.id === id);
             if (!product) return;
             
-            // Force single mode when editing
+            // Reset to single mode for editing
             currentMode = 'single';
             shoppingSession = null;
-            
             editingProductId = id;
+            
+            // Set form values
             document.getElementById('modalTitle').textContent = 'Modifica Prodotto';
-            document.getElementById('editingId').value = id;
             document.getElementById('productName').value = product.name;
             document.getElementById('productBrand').value = product.brand || '';
             document.getElementById('productPrice').value = product.price;
             document.getElementById('purchaseDate').value = product.date;
             document.getElementById('storeName').value = product.store;
             
-            // Make sure we're in single mode
+            // Set mode buttons
             document.getElementById('singleModeBtn').classList.add('active');
             document.getElementById('shoppingModeBtn').classList.remove('active');
             
-            // Show all necessary fields
+            // Show correct sections
             document.getElementById('sessionSetup').style.display = 'none';
             document.getElementById('sessionInfo').style.display = 'none';
             document.getElementById('singleModeFields').style.display = 'block';
             document.getElementById('productFields').style.display = 'block';
-            document.getElementById('addAnotherBtn').style.display = 'none';
-            document.getElementById('saveButtonText').textContent = '💾 Salva Prodotto';
+            document.getElementById('shoppingModeButtons').style.display = 'none';
+            document.getElementById('mainSaveBtn').style.display = 'block';
+            document.getElementById('saveButtonText').textContent = '💾 Salva Modifiche';
             
+            // Handle discount
             const hasDiscount = product.discount || product.discountPercentage;
             const toggle = document.getElementById('discountToggle');
             
