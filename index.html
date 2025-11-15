@@ -122,11 +122,11 @@
         }
 
         /* Product Item */
-        /* Product Item with Menu */
         .product-item {
             background: var(--card-background);
             border-radius: 12px;
             padding: 16px;
+            padding-top: 40px; /* Space for menu button */
             margin-bottom: 10px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.08);
             position: relative;
@@ -1648,7 +1648,7 @@
                                 <span>Elimina</span>
                             </div>
                         </div>
-                        <div onclick="showProductDetail('${product.id}')" style="padding-top: 8px;">
+                        <div onclick="showProductDetail('${product.id}')">
                             <div class="product-header">
                                 <div class="product-name">${product.name}${product.brand ? ` - ${product.brand}` : ''}</div>
                                 <div class="product-price-container">
